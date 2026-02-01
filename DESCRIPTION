@@ -13,3 +13,5 @@ Imports:
     httr2,
     magrittr,
     readr
+URL: https://github.com/tomcopple/dropboxr
+BugReports: https://github.com/tomcopple/dropboxr/issues
