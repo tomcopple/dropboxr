@@ -71,20 +71,20 @@ dropbox_request <- function(endpoint,
 
 
   # Check if we have refresh token capability
-  if (!is.null(token$refresh_token) && !is.null(token$client)) {
-    # Use refresh flow
-    httr2::request(base_url) |>
-      httr2::req_url_path_append(endpoint) |>
-      httr2::req_oauth_refresh(
-        client = token$client,
-        refresh_token = token$refresh_token
-      )
-  } else {
+  # if (!is.null(token$refresh_token) && !is.null(token$client)) {
+  #   # Use refresh flow
+  #   httr2::request(base_url) |>
+  #     httr2::req_url_path_append(endpoint) |>
+  #     httr2::req_oauth_refresh(
+  #       client = token$client,
+  #       refresh_token = token$refresh_token
+  #     )
+  # } else {
     # Fall back to bearer token
     httr2::request(base_url) |>
       httr2::req_url_path_append(endpoint) |>
       httr2::req_auth_bearer_token(access_token)
-  }
+  # }
 }
 
 #' Download a file from Dropbox
