@@ -40,6 +40,7 @@ dropbox_request <- function(endpoint,
                             token = NULL,
                             cache_path = "~/R/.dropbox_token.rds") {
 
+  print("Dropbox_request")
   base_url <- switch(api_type,
                      "api" = "https://api.dropboxapi.com/2",
                      "content" = "https://content.dropboxapi.com/2",

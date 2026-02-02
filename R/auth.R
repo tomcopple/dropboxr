@@ -51,40 +51,6 @@ dropbox_auth <- function(app_key = NULL,
   token
 }
 
-#' Get authenticated Dropbox request
-#'
-#' @param token OAuth token from dropbox_auth() (if NULL, will attempt to load cached token)
-#' @param cache_path Path to cached token
-#' @return An authenticated httr2 request object
-#' @export
-dropbox_request <- function(token = NULL, cache_path = "~/R/.dropbox_token.rds") {
-
-  if (is.null(token)) {
-    if (file.exists(cache_path)) {
-      token <- readRDS(cache_path)
-    } else {
-      stop("No token provided. Run dropbox_auth() first.")
-    }
-  }
-
-  # Extract access token based on what we received
-  if (is.character(token)) {
-    # Plain string - use directly
-    access_token <- token
-  } else if (!is.null(token$credentials$access_token)) {
-    # httr2_token object
-    access_token <- token$credentials$access_token
-  } else if (!is.null(token$access_token)) {
-    # Simple list with access_token
-    access_token <- token$access_token
-  } else {
-    stop("Could not extract access token from token object")
-  }
-
-  httr2::request("https://api.dropboxapi.com/2") |>
-    httr2::req_auth_bearer_token(access_token)
-}
-
 #' Clear cached Dropbox token
 #'
 #' @param cache_path Path to cached token
