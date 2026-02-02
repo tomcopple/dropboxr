@@ -73,7 +73,7 @@ dropbox_request <- function(token = NULL, cache_path = "~/R/.dropbox_token.rds")
     access_token <- token
   } else if (!is.null(token$credentials$access_token)) {
     # httr2_token object
-    access_token <- token$token$access_token
+    access_token <- token$credentials$access_token
   } else if (!is.null(token$access_token)) {
     # Simple list with access_token
     access_token <- token$access_token
