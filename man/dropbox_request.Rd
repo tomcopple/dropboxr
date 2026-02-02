@@ -30,10 +30,36 @@ dropbox_request(
 \value{
 An authenticated httr2 request object
 
-An httr2 request object
+An httr2 request object ready to be executed with req_perform()
 }
 \description{
-Get authenticated Dropbox request
+Creates an authenticated request to the Dropbox API. This is a low-level
+function used by other dropboxr functions. You typically won't need to
+call this directly unless you're implementing additional Dropbox API
+endpoints.
+}
+\details{
+The Dropbox API has two base URLs:
+\itemize{
+\item "api" for metadata operations (listing files, getting info, etc.)
+\item "content" for content operations (downloading/uploading files)
+}
 
-Create a Dropbox API request
+If a cached token exists and contains refresh token information, the
+request will automatically refresh the token when needed.
+}
+\examples{
+\dontrun{
+# Create a request for file metadata
+req <- dropbox_request("/files/get_metadata", api_type = "api")
+
+# Execute the request
+resp <- req |>
+  httr2::req_body_json(list(path = "/my/file.txt")) |>
+  httr2::req_perform()
+}
+
+}
+\seealso{
+\code{\link[=dropbox_auth]{dropbox_auth()}}, \code{\link[=download_dropbox_file]{download_dropbox_file()}}, \code{\link[=upload_dropbox_file]{upload_dropbox_file()}}
 }
