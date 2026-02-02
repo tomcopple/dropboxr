@@ -55,6 +55,21 @@ dropbox_request <- function(endpoint,
     }
   }
 
+  # Extract access token based on what we received
+  if (is.character(token)) {
+    # Plain string - use directly
+    access_token <- token
+  } else if (!is.null(token$credentials$access_token)) {
+    # httr2_token object
+    access_token <- token$credentials$access_token
+  } else if (!is.null(token$access_token)) {
+    # Simple list with access_token
+    access_token <- token$access_token
+  } else {
+    stop("Could not extract access token from token object")
+  }
+
+
   # Check if we have refresh token capability
   if (!is.null(token$refresh_token) && !is.null(token$client)) {
     # Use refresh flow
@@ -68,7 +83,7 @@ dropbox_request <- function(endpoint,
     # Fall back to bearer token
     httr2::request(base_url) |>
       httr2::req_url_path_append(endpoint) |>
-      httr2::req_auth_bearer_token(token$access_token)
+      httr2::req_auth_bearer_token(access_token)
   }
 }
 
