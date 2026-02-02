@@ -55,6 +55,7 @@ dropbox_request <- function(endpoint,
     }
   }
 
+  print("Extracting access token")
   # Extract access token based on what we received
   if (is.character(token)) {
     # Plain string - use directly
