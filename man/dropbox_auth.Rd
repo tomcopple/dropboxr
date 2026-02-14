@@ -16,7 +16,7 @@ dropbox_auth(
 
 \item{app_secret}{Your Dropbox app secret}
 
-\item{cache_path}{Where to cache the token (default: "~/.dropbox_token.rds")}
+\item{cache_path}{Where to cache the token (default: "~/R/.dropbox_token.rds")}
 
 \item{force_refresh}{Force a new authentication even if token exists}
 }

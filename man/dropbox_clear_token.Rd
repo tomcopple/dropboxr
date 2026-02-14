@@ -4,7 +4,7 @@
 \alias{dropbox_clear_token}
 \title{Clear cached Dropbox token}
 \usage{
-dropbox_clear_token(cache_path = "~/.dropbox_token.rds")
+dropbox_clear_token(cache_path = "~/R/.dropbox_token.rds")
 }
 \arguments{
 \item{cache_path}{Path to cached token}

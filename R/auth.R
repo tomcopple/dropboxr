@@ -2,7 +2,7 @@
 #'
 #' @param app_key Your Dropbox app key
 #' @param app_secret Your Dropbox app secret
-#' @param cache_path Where to cache the token (default: "~/.dropbox_token.rds")
+#' @param cache_path Where to cache the token (default: "~/R/.dropbox_token.rds")
 #' @param force_refresh Force a new authentication even if token exists
 #' @export
 dropbox_auth <- function(app_key = NULL,
@@ -10,14 +10,61 @@ dropbox_auth <- function(app_key = NULL,
                          cache_path = "~/R/.dropbox_token.rds",
                          force_refresh = FALSE) {
 
-  # Try to load cached token first
   if (!force_refresh && file.exists(cache_path)) {
-    message("Using cached token from ", cache_path)
     token <- readRDS(cache_path)
-    return(token)
+
+    if (!.dropbox_token_is_expired(token)) {
+      message("Using cached token from ", cache_path)
+      return(token)
+    }
+
+    refresh_token <- .dropbox_token_field(token, "refresh_token")
+
+    if (!is.null(refresh_token) && nzchar(refresh_token)) {
+      creds <- .dropbox_resolve_app_credentials(app_key, app_secret)
+
+      client <- httr2::oauth_client(
+        id = creds$app_key,
+        secret = creds$app_secret,
+        token_url = "https://api.dropbox.com/oauth2/token",
+        name = "RStudio_TC"
+      )
+
+      refreshed_token <- httr2::oauth_flow_refresh(
+        client = client,
+        refresh_token = refresh_token
+      )
+
+      saveRDS(refreshed_token, cache_path)
+      message("Cached token expired and was refreshed: ", cache_path)
+      return(refreshed_token)
+    }
+
+    message("Cached token is expired and has no refresh token; starting new authentication flow.")
   }
 
-  # Get credentials from environment if not provided
+  creds <- .dropbox_resolve_app_credentials(app_key, app_secret)
+
+  client <- httr2::oauth_client(
+    id = creds$app_key,
+    secret = creds$app_secret,
+    token_url = "https://api.dropbox.com/oauth2/token",
+    name = "RStudio_TC"
+  )
+
+  token <- httr2::oauth_flow_auth_code(
+    client = client,
+    auth_url = "https://www.dropbox.com/oauth2/authorize?token_access_type=offline",
+    redirect_uri = "http://localhost:1410/"
+  )
+
+  saveRDS(token, cache_path)
+  message("Token cached to ", cache_path)
+
+  token
+}
+
+.dropbox_resolve_app_credentials <- function(app_key, app_secret) {
   if (is.null(app_key)) {
     app_key <- Sys.getenv("DROPBOX_KEY")
   }
@@ -29,33 +76,42 @@ dropbox_auth <- function(app_key = NULL,
     stop("Dropbox app key and secret required. Set DROPBOX_KEY and DROPBOX_SECRET environment variables or pass them as arguments.")
   }
 
-  # Create OAuth client
-  client <- httr2::oauth_client(
-    id = app_key,
-    secret = app_secret,
-    token_url = "https://api.dropbox.com/oauth2/token",
-    name = "RStudio_TC"
-  )
+  list(app_key = app_key, app_secret = app_secret)
+}
 
-  # Perform OAuth flow
-  token <- httr2::oauth_flow_auth_code(
-    client = client,
-    auth_url = "https://www.dropbox.com/oauth2/authorize?token_access_type=offline",
-    redirect_uri = "http://localhost:1410/"
-  )
+.dropbox_token_field <- function(token, field) {
+  if (!is.null(token[[field]])) {
+    return(token[[field]])
+  }
 
-  # Cache the token
-  saveRDS(token, cache_path)
-  message("Token cached to ", cache_path)
+  if (!is.null(token$credentials) && !is.null(token$credentials[[field]])) {
+    return(token$credentials[[field]])
+  }
 
-  token
+  NULL
+}
+
+.dropbox_token_is_expired <- function(token, leeway_seconds = 60) {
+  expires_at <- .dropbox_token_field(token, "expires_at")
+
+  if (is.null(expires_at)) {
+    return(FALSE)
+  }
+
+  expires_at_num <- suppressWarnings(as.numeric(expires_at))
+  if (is.na(expires_at_num)) {
+    return(FALSE)
+  }
+
+  now_num <- as.numeric(Sys.time())
+  expires_at_num <= (now_num + leeway_seconds)
 }
 
 #' Clear cached Dropbox token
 #'
 #' @param cache_path Path to cached token
 #' @export
-dropbox_clear_token <- function(cache_path = "~/.dropbox_token.rds") {
+dropbox_clear_token <- function(cache_path = "~/R/.dropbox_token.rds") {
   if (file.exists(cache_path)) {
     file.remove(cache_path)
     message("Token cleared from ", cache_path)

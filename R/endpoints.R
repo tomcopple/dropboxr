@@ -40,53 +40,62 @@ dropbox_request <- function(endpoint,
                             token = NULL,
                             cache_path = "~/R/.dropbox_token.rds") {
 
-  print("Dropbox_request")
   base_url <- switch(api_type,
                      "api" = "https://api.dropboxapi.com/2",
                      "content" = "https://content.dropboxapi.com/2",
                      stop("Invalid api_type. Must be 'api' or 'content'")
   )
 
-  # Load token if not provided
+  token_from_cache <- FALSE
+
   if (is.null(token)) {
-    if (file.exists(cache_path)) {
-      token <- readRDS(cache_path)
-    } else {
+    if (!file.exists(cache_path)) {
       stop("No token provided. Run dropbox_auth() first.")
+    }
+
+    token <- dropbox_auth(cache_path = cache_path)
+    token_from_cache <- TRUE
+  }
+
+  if (!is.character(token) && .dropbox_token_is_expired(token)) {
+    refresh_token <- .dropbox_token_field(token, "refresh_token")
+
+    if (is.null(refresh_token) || !nzchar(refresh_token)) {
+      stop("Provided token is expired and cannot be refreshed. Re-authenticate with dropbox_auth().")
+    }
+
+    creds <- .dropbox_resolve_app_credentials(NULL, NULL)
+    client <- httr2::oauth_client(
+      id = creds$app_key,
+      secret = creds$app_secret,
+      token_url = "https://api.dropbox.com/oauth2/token",
+      name = "RStudio_TC"
+    )
+
+    token <- httr2::oauth_flow_refresh(
+      client = client,
+      refresh_token = refresh_token
+    )
+
+    if (token_from_cache) {
+      saveRDS(token, cache_path)
+      message("Cached token expired and was refreshed: ", cache_path)
     }
   }
 
-  print("Extracting access token")
-  # Extract access token based on what we received
-  if (is.character(token)) {
-    # Plain string - use directly
-    access_token <- token
-  } else if (!is.null(token$credentials$access_token)) {
-    # httr2_token object
-    access_token <- token$credentials$access_token
-  } else if (!is.null(token$access_token)) {
-    # Simple list with access_token
-    access_token <- token$access_token
+  access_token <- if (is.character(token)) {
+    token
   } else {
+    .dropbox_token_field(token, "access_token")
+  }
+
+  if (is.null(access_token) || !nzchar(access_token)) {
     stop("Could not extract access token from token object")
   }
 
-
-  # Check if we have refresh token capability
-  # if (!is.null(token$refresh_token) && !is.null(token$client)) {
-  #   # Use refresh flow
-  #   httr2::request(base_url) |>
-  #     httr2::req_url_path_append(endpoint) |>
-  #     httr2::req_oauth_refresh(
-  #       client = token$client,
-  #       refresh_token = token$refresh_token
-  #     )
-  # } else {
-    # Fall back to bearer token
-    httr2::request(base_url) |>
-      httr2::req_url_path_append(endpoint) |>
-      httr2::req_auth_bearer_token(access_token)
-  # }
+  httr2::request(base_url) |>
+    httr2::req_url_path_append(endpoint) |>
+    httr2::req_auth_bearer_token(access_token)
 }
 
 #' Download a file from Dropbox
