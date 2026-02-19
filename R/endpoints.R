@@ -68,7 +68,7 @@ dropbox_request <- function(endpoint,
     client <- httr2::oauth_client(
       id = creds$app_key,
       secret = creds$app_secret,
-      token_url = "https://api.dropbox.com/oauth2/token",
+      token_url = "https://api.dropboxapi.com/oauth2/token",
       name = "RStudio_TC"
     )
 
@@ -76,6 +76,11 @@ dropbox_request <- function(endpoint,
       client = client,
       refresh_token = refresh_token
     )
+
+    refreshed_refresh_token <- .dropbox_token_field(token, "refresh_token")
+    if (is.null(refreshed_refresh_token) || !nzchar(refreshed_refresh_token)) {
+      token <- .dropbox_set_token_field(token, "refresh_token", refresh_token)
+    }
 
     if (token_from_cache) {
       saveRDS(token, cache_path)

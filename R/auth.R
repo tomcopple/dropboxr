@@ -26,7 +26,7 @@ dropbox_auth <- function(app_key = NULL,
       client <- httr2::oauth_client(
         id = creds$app_key,
         secret = creds$app_secret,
-        token_url = "https://api.dropbox.com/oauth2/token",
+        token_url = "https://api.dropboxapi.com/oauth2/token",
         name = "RStudio_TC"
       )
 
@@ -34,6 +34,15 @@ dropbox_auth <- function(app_key = NULL,
         client = client,
         refresh_token = refresh_token
       )
+
+      refreshed_refresh_token <- .dropbox_token_field(refreshed_token, "refresh_token")
+      if (is.null(refreshed_refresh_token) || !nzchar(refreshed_refresh_token)) {
+        refreshed_token <- .dropbox_set_token_field(
+          refreshed_token,
+          "refresh_token",
+          refresh_token
+        )
+      }
 
       saveRDS(refreshed_token, cache_path)
       message("Cached token expired and was refreshed: ", cache_path)
@@ -48,15 +57,26 @@ dropbox_auth <- function(app_key = NULL,
   client <- httr2::oauth_client(
     id = creds$app_key,
     secret = creds$app_secret,
-    token_url = "https://api.dropbox.com/oauth2/token",
+    token_url = "https://api.dropboxapi.com/oauth2/token",
     name = "RStudio_TC"
   )
 
   token <- httr2::oauth_flow_auth_code(
     client = client,
-    auth_url = "https://www.dropbox.com/oauth2/authorize?token_access_type=offline",
+    auth_url = "https://www.dropbox.com/oauth2/authorize",
+    auth_params = list(token_access_type = "offline"),
     redirect_uri = "http://localhost:1410/"
   )
+
+  issued_refresh_token <- .dropbox_token_field(token, "refresh_token")
+  if (is.null(issued_refresh_token) || !nzchar(issued_refresh_token)) {
+    warning(
+      paste0(
+        "Dropbox did not return a refresh token. ",
+        "Re-auth with force_refresh = TRUE and confirm your app allows offline access."
+      )
+    )
+  }
 
   saveRDS(token, cache_path)
   message("Token cached to ", cache_path)
@@ -89,6 +109,20 @@ dropbox_auth <- function(app_key = NULL,
   }
 
   NULL
+}
+
+.dropbox_set_token_field <- function(token, field, value) {
+  if (is.null(value) || !is.list(token)) {
+    return(token)
+  }
+
+  token[[field]] <- value
+
+  if (!is.null(token$credentials) && is.list(token$credentials)) {
+    token$credentials[[field]] <- value
+  }
+
+  token
 }
 
 .dropbox_token_is_expired <- function(token, leeway_seconds = 60) {
